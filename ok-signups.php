@@ -25,86 +25,34 @@ License: GPL2
 */
 
 
-/*************************** LOAD THE BASE CLASS *******************************
- *******************************************************************************
- * The WP_List_Table class isn't automatically available to plugins, so we need
- * to check if it's available and load it if necessary.
- */
 if ( !class_exists( 'WP_List_Table' ) ) {
     require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
 }
 
 
-/************************** CREATE A PACKAGE CLASS *****************************
- *******************************************************************************
- * Create a new list table package that extends the core WP_List_Table class.
- * WP_List_Table contains most of the framework for generating the table, but we
- * need to define and override some methods so that our data can be displayed
- * exactly the way we need it to be.
- * 
- * To display this example on a page, you will first need to instantiate the class,
- * then call $yourInstance->prepare_items() to handle any data manipulation, then
- * finally call $yourInstance->display() to render the table to the page.
- * 
- * Our theme for this list table is going to be movies.
- */
 class OK_Signups_List_Table extends WP_List_Table {
 
-    /** ************************************************************************
-     * REQUIRED. Set up a constructor that references the parent constructor. We 
-     * use the parent reference to set some default configs.
-     ***************************************************************************/
-    function __construct(){
+    function __construct() {
         global $status, $page;
 
         //Set parent defaults
         parent::__construct( array(
             'singular'  => 'signup',     //singular name of the listed records
             'plural'    => 'signups',    //plural name of the listed records
-            'ajax'      => false        //does this table support ajax?
+            'ajax'      => false         //does this table support ajax?
         ) );
         
     }
 
-    /** ************************************************************************
-     * Recommended. This method is called when the parent class can't find a method
-     * specifically build for a given column. Generally, it's recommended to include
-     * one method for each column you want to render, keeping your package class
-     * neat and organized. For example, if the class needs to process a column
-     * named 'title', it would first see if a method named $this->column_title() 
-     * exists - if it does, that method will be used. If it doesn't, this one will
-     * be used. Generally, you should try to use custom column methods as much as 
-     * possible. 
-     * 
-     * Since we have defined a column_title() method later on, this method doesn't
-     * need to concern itself with any column with a name of 'title'. Instead, it
-     * needs to handle everything else.
-     * 
-     * For more detailed insight into how columns are handled, take a look at 
-     * WP_List_Table::single_row_columns()
-     * 
-     * @param array $item A singular item (one full row's worth of data)
-     * @param array $column_name The name/slug of the column to be processed
-     * @return string Text or HTML to be placed inside the column <td>
-     **************************************************************************/
-    function column_default($item, $column_name){
+    function column_default($item, $column_name) {
         return $item->$column_name;
     }
 
-    /** ************************************************************************
-     * REQUIRED! This method dictates the table's columns and titles. This should
-     * return an array where the key is the column slug (and class) and the value 
-     * is the column's title text. If you need a checkbox for bulk actions, refer
-     * to the $columns array below.
-     * 
-     * The 'cb' column is treated differently than the rest. If including a checkbox
-     * column in your table you must create a column_cb() method. If you don't need
-     * bulk actions or checkboxes, simply leave the 'cb' entry out of your array.
-     * 
-     * @see WP_List_Table::::single_row_columns()
-     * @return array An associative array containing column information: 'slugs'=>'Visible Titles'
-     **************************************************************************/
-    function get_columns(){
+    function column_date($item) {
+        return date( 'F j, Y, g:i a', strtotime( $item->date ) );
+    }
+
+    function get_columns() {
         $columns = array(
             'first_name' => 'First Name',
             'last_name'  => 'Last Name',
@@ -118,20 +66,6 @@ class OK_Signups_List_Table extends WP_List_Table {
         return $columns;
     }
 
-    /** ************************************************************************
-     * Optional. If you want one or more columns to be sortable (ASC/DESC toggle), 
-     * you will need to register it here. This should return an array where the 
-     * key is the column that needs to be sortable, and the value is db column to 
-     * sort by. Often, the key and value will be the same, but this is not always
-     * the case (as the value is a column name from the database, not the list table).
-     * 
-     * This method merely defines which columns should be sortable and makes them
-     * clickable - it does not handle the actual sorting. You still need to detect
-     * the ORDERBY and ORDER querystring variables within prepare_items() and sort
-     * your data accordingly (usually by modifying your query).
-     * 
-     * @return array An associative array containing all the columns that should be sortable: 'slugs'=>array('data_values',bool)
-     **************************************************************************/
     function get_sortable_columns() {
         $sortable_columns = array(
             'first_name' => array('first_name', false),
@@ -141,54 +75,33 @@ class OK_Signups_List_Table extends WP_List_Table {
             'city'       => array('city', false),
             'state'      => array('state', false),
             'zip'        => array('zip', false),
-            'date'       => array('zip', true),
+            'date'       => array('date', true),
         );
         return $sortable_columns;
     }
 
-    /** ************************************************************************
-     * REQUIRED! This is where you prepare your data for display. This method will
-     * usually be used to query the database, sort and filter the data, and generally
-     * get it ready to be displayed. At a minimum, we should set $this->items and
-     * $this->set_pagination_args(), although the following properties and methods
-     * are frequently interacted with here...
-     * 
-     * @global WPDB $wpdb
-     * @uses $this->_column_headers
-     * @uses $this->items
-     * @uses $this->get_columns()
-     * @uses $this->get_sortable_columns()
-     * @uses $this->get_pagenum()
-     * @uses $this->set_pagination_args()
-     **************************************************************************/
-    function prepare_items() {
-        global $wpdb; //This is used only if making any database queries
+    function get_bulk_actions() {
+        $actions = array(
+            'export_signups' => 'Export'
+        );
+        return $actions;
+    }
 
-        /**
-         * REQUIRED. Now we need to define our column headers. This includes a complete
-         * array of columns to be displayed (slugs & titles), a list of columns
-         * to keep hidden, and a list of columns that are sortable. Each of these
-         * can be defined in another method (as we've done here) before being
-         * used to build the value for our _column_headers property.
-         */
+    function prepare_items() {
+        global $wpdb;
+
         $columns = $this->get_columns();
         $hidden = array();
         $sortable = $this->get_sortable_columns();
 
-        /**
-         * REQUIRED. Finally, we build an array to be used by the class for column 
-         * headers. The $this->_column_headers property takes an array which contains
-         * 3 other arrays. One for all columns, one for hidden columns, and one
-         * for sortable columns.
-         */
         $this->_column_headers = array($columns, $hidden, $sortable);
 
         /* -- Preparing your query -- */
         $query = "SELECT * FROM $wpdb->signups";
 
         /* -- Ordering parameters -- */
-        $orderby = !empty( $_GET["orderby"] ) ? mysql_real_escape_string( $_GET["orderby"] ) : '';
-        $order = !empty( $_GET["order"] ) ? mysql_real_escape_string( $_GET["order"] ) : 'ASC';
+        $orderby = !empty( $_GET["orderby"] ) ? mysql_real_escape_string( $_GET["orderby"] ) : 'date';
+        $order = !empty( $_GET["order"] ) ? mysql_real_escape_string( $_GET["order"] ) : 'DESC';
         if ( !empty( $orderby ) & !empty( $order ) ) {
             $query .= ' ORDER BY ' . $orderby . ' ' . $order;
         }
@@ -204,60 +117,52 @@ class OK_Signups_List_Table extends WP_List_Table {
             $query .= ' LIMIT ' . (int)$offset . ',' . (int)$per_page;
         }
 
-        /**
-         * REQUIRED for pagination. Let's figure out what page the user is currently 
-         * looking at. We'll need this later, so you should always include it in 
-         * your own package classes.
-         */
         $current_page = $this->get_pagenum();
 
-        /**
-         * REQUIRED. Now we can add our *sorted* data to the items property, where 
-         * it can be used by the rest of the class.
-         */
-        // $this->items = $data;
         $this->items = $wpdb->get_results($query);
-        
-        
-        /**
-         * REQUIRED. We also have to register our pagination options & calculations.
-         */
+
         $this->set_pagination_args( array(
-            'total_items' => $total_items,                  //WE have to calculate the total number of items
-            'per_page'    => $per_page,                     //WE have to determine how many items to show on a page
-            'total_pages' => ceil($total_items / $per_page)   //WE have to calculate the total number of pages
+            'total_items' => $total_items,
+            'per_page'    => $per_page,
+            'total_pages' => ceil($total_items / $per_page),
         ) );
     }
     
 }
 
 
-/** ************************ REGISTER THE TEST PAGE ****************************
- *******************************************************************************
- * Now we just need to define an admin page. For this example, we'll add a top-level
- * menu item to the bottom of the admin menus.
- */
+function ok_process_bulk_action() {
+    //Detect when a bulk action is being triggered...
+    if ( isset( $_REQUEST['action'] ) && 'export_signups' === $_REQUEST['action'] ) {
+        global $wpdb;
+
+        $query = "SELECT * FROM $wpdb->signups";
+        $data = $wpdb->get_results( $query, ARRAY_N );
+
+        // print_r($data); die();
+
+        require_once( __DIR__ . '/lib/parsecsv/parsecsv.lib.php' );
+        $csv = new parseCSV();
+        $csv->output( 'books.csv', $data );
+        die();
+    }
+}
+add_action( 'plugins_loaded', 'ok_process_bulk_action' );
+
+
 function ok_add_menu_items() {
     add_menu_page( 'Signup Contact Info', 'Signups', 'activate_plugins', 'ok_signups', 'ok_render_list_page');
 }
 add_action('admin_menu', 'ok_add_menu_items');
 
 
-/***************************** RENDER TEST PAGE ********************************
- *******************************************************************************
- * This function renders the admin page and the example list table. Although it's
- * possible to call prepare_items() and display() from the constructor, there
- * are often times where you may need to include logic here between those steps,
- * so we've instead called those methods explicitly. It keeps things flexible, and
- * it's the way the list tables are used in the WordPress core.
- */
-function ok_render_list_page(){
+function ok_render_list_page() {
 
     //Create an instance of our package class...
-    $testListTable = new OK_Signups_List_Table();
+    $signupsListTable = new OK_Signups_List_Table();
 
     //Fetch, prepare, sort, and filter our data...
-    $testListTable->prepare_items();
+    $signupsListTable->prepare_items();
 
     ?>
     <div class="wrap">
@@ -265,12 +170,9 @@ function ok_render_list_page(){
         <div id="icon-users" class="icon32"><br/></div>
         <h2>Signups Contact Info</h2>
 
-        <!-- Forms are NOT created automatically, so you need to wrap the table in one to use features like bulk actions -->
         <form id="movies-filter" method="get">
-            <!-- For plugins, we also need to ensure that the form posts back to our current page -->
-            <input type="hidden" name="page" value="<?php echo $_REQUEST['page'] ?>" />
-            <!-- Now we can render the completed list table -->
-            <?php $testListTable->display() ?>
+            <input type="hidden" name="page" value="<?php echo $_REQUEST['page']; ?>" />
+            <?php $signupsListTable->display(); ?>
         </form>
         
     </div>
@@ -299,7 +201,35 @@ function ok_signups_install() {
     require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
     dbDelta( $sql );
 }
-
 register_activation_hook( __FILE__, 'ok_signups_install' );
+
+
+function ok_signup() {
+    global $wpdb;
+
+    $first_name = ( isset( $_POST['first_name'] ) && !empty( $_POST['first_name'] ) ) ? $_POST['first_name'] : '';
+    $last_name = ( isset( $_POST['last_name'] ) && !empty( $_POST['last_name'] ) ) ? $_POST['last_name'] : '';
+    $email = ( isset( $_POST['email'] ) && !empty( $_POST['email'] ) ) ? $_POST['email'] : '';
+    $address = ( isset( $_POST['address'] ) && !empty( $_POST['address'] ) ) ? $_POST['address'] : '';
+    $city = ( isset( $_POST['city'] ) && !empty( $_POST['city'] ) ) ? $_POST['city'] : '';
+    $state = ( isset( $_POST['state'] ) && !empty( $_POST['state'] ) ) ? $_POST['state'] : '';
+    $zip = ( isset( $_POST['zip'] ) && !empty( $_POST['zip'] ) ) ? $_POST['zip'] : '';
+
+    $signup = $wpdb->insert( $wpdb->prefix . 'signups', array(
+        'first_name' => $first_name,
+        'last_name' => $last_name,
+        'email' => $email,
+        'address' => $address,
+        'city' => $city,
+        'state' => $state,
+        'zip' => $zip,
+        'date' => current_time('mysql', 1),
+    ));
+
+    echo $signup;
+    die();
+}
+add_action( 'wp_ajax_signup', 'ok_signup' );
+add_action( 'wp_ajax_nopriv_signup', 'ok_signup' );
 
 $wpdb->signups = $wpdb->prefix . 'signups';
