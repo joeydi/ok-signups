@@ -139,11 +139,9 @@ function ok_process_bulk_action() {
         $query = "SELECT * FROM $wpdb->signups";
         $data = $wpdb->get_results( $query, ARRAY_N );
 
-        // print_r($data); die();
-
         require_once( __DIR__ . '/lib/parsecsv/parsecsv.lib.php' );
         $csv = new parseCSV();
-        $csv->output( 'books.csv', $data );
+        $csv->output( 'signups.csv', $data );
         die();
     }
 }
@@ -170,7 +168,7 @@ function ok_render_list_page() {
         <div id="icon-users" class="icon32"><br/></div>
         <h2>Signups Contact Info</h2>
 
-        <form id="movies-filter" method="get">
+        <form id="signups-filter" method="get">
             <input type="hidden" name="page" value="<?php echo $_REQUEST['page']; ?>" />
             <?php $signupsListTable->display(); ?>
         </form>
