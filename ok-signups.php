@@ -24,11 +24,17 @@ License: GPL2
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+global $hook_suffix;
 
 if ( !class_exists( 'WP_List_Table' ) ) {
     require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
 }
 
+require_once(ABSPATH . 'wp-admin/includes/template.php' );
+
+if( ! class_exists('WP_Screen') ) {
+    require_once( ABSPATH . 'wp-admin/includes/screen.php' );
+}
 
 class OK_Signups_List_Table extends WP_List_Table {
 
@@ -132,8 +138,15 @@ class OK_Signups_List_Table extends WP_List_Table {
 
 
 function ok_process_bulk_action() {
-    //Detect when a bulk action is being triggered...
-    if ( isset( $_REQUEST['action'] ) && 'export_signups' === $_REQUEST['action'] ) {
+
+    // Create an instance of our package class...
+    $signupsListTable = new OK_Signups_List_Table();
+
+    // Use it to fetch the current bulk action
+    $action = $signupsListTable->current_action();
+
+    // Detect when a bulk action is being triggered...
+    if ( $action && 'export_signups' === $action ) {
         global $wpdb;
 
         $query = "SELECT * FROM $wpdb->signups";
